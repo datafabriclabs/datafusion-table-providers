@@ -66,6 +66,7 @@ WHEN c.data_type = 'USER-DEFINED' THEN
     CASE 
         WHEN t.typtype = 'e' THEN 'enum'
         WHEN t.typtype = 'c' THEN 'composite'
+        WHEN t.typtype = 'b' THEN t.typname
         ELSE c.data_type
     END
 WHEN c.data_type = 'ARRAY' THEN
