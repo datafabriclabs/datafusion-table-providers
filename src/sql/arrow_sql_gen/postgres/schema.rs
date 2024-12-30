@@ -8,13 +8,17 @@ pub(crate) fn pg_data_type_to_arrow_type(
     pg_type: &str,
     type_details: Option<serde_json::Value>,
 ) -> Result<DataType, ArrowError> {
-    let base_type = pg_type.split('(').next().unwrap_or(pg_type).trim();
+    let base_type = pg_type
+        .split('(')
+        .next()
+        .unwrap_or(pg_type)
+        .trim_matches('"');
 
     match base_type {
         "smallint" => Ok(DataType::Int16),
         "integer" | "int" | "int4" => Ok(DataType::Int32),
         "bigint" | "int8" | "money" => Ok(DataType::Int64),
-        "oid" => Ok(DataType::UInt32),
+        "oid" | "xid" => Ok(DataType::UInt32),
         "numeric" | "decimal" => {
             let (precision, scale) = parse_numeric_type(pg_type)?;
             Ok(DataType::Decimal128(precision, scale))
@@ -48,6 +52,7 @@ pub(crate) fn pg_data_type_to_arrow_type(
         "bit" | "bit varying" => Ok(DataType::Binary),
         "tsvector" | "tsquery" => Ok(DataType::LargeUtf8),
         "xml" | "json" | "jsonb" => Ok(DataType::LargeUtf8),
+        "aclitem" | "pg_node_tree" => Ok(DataType::Utf8),
         "array" => parse_array_type(type_details),
         "int4range" => Ok(DataType::Struct(Fields::from(vec![
             Field::new("lower", DataType::Int32, true),
@@ -201,6 +206,10 @@ mod tests {
             DataType::UInt32
         );
         assert_eq!(
+            pg_data_type_to_arrow_type("xid", None).expect("Failed to convert xid"),
+            DataType::UInt32
+        );
+        assert_eq!(
             pg_data_type_to_arrow_type("real", None).expect("Failed to convert real"),
             DataType::Float32
         );
@@ -217,6 +226,10 @@ mod tests {
         // Test string types
         assert_eq!(
             pg_data_type_to_arrow_type("character", None).expect("Failed to convert character"),
+            DataType::Utf8
+        );
+        assert_eq!(
+            pg_data_type_to_arrow_type("char", None).expect("Failed to convert char"),
             DataType::Utf8
         );
         assert_eq!(

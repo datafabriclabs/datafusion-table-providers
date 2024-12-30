@@ -258,11 +258,17 @@ pub fn rows_to_arrow(rows: &[Row], projected_schema: &Option<SchemaRef>) -> Resu
                 Type::OID => {
                     handle_primitive_type!(builder, Type::OID, UInt32Builder, u32, row, i);
                 }
+                Type::XID => {
+                    handle_primitive_type!(builder, Type::XID, UInt32Builder, u32, row, i);
+                }
                 Type::FLOAT4 => {
                     handle_primitive_type!(builder, Type::FLOAT4, Float32Builder, f32, row, i);
                 }
                 Type::FLOAT8 => {
                     handle_primitive_type!(builder, Type::FLOAT8, Float64Builder, f64, row, i);
+                }
+                Type::CHAR => {
+                    handle_primitive_type!(builder, Type::CHAR, StringBuilder, &str, row, i);
                 }
                 Type::TEXT => {
                     handle_primitive_type!(builder, Type::TEXT, StringBuilder, &str, row, i);
@@ -841,10 +847,12 @@ fn map_column_type_to_data_type(column_type: &Type) -> Option<DataType> {
         Type::INT2 => Some(DataType::Int16),
         Type::INT4 => Some(DataType::Int32),
         Type::INT8 | Type::MONEY => Some(DataType::Int64),
-        Type::OID => Some(DataType::UInt32),
+        Type::OID | Type::XID => Some(DataType::UInt32),
         Type::FLOAT4 => Some(DataType::Float32),
         Type::FLOAT8 => Some(DataType::Float64),
-        Type::TEXT | Type::VARCHAR | Type::BPCHAR | Type::UUID | Type::NAME => Some(DataType::Utf8),
+        Type::CHAR | Type::TEXT | Type::VARCHAR | Type::BPCHAR | Type::UUID | Type::NAME => {
+            Some(DataType::Utf8)
+        }
         Type::BYTEA => Some(DataType::Binary),
         Type::BOOL => Some(DataType::Boolean),
         Type::JSON => Some(DataType::LargeUtf8),
@@ -859,6 +867,7 @@ fn map_column_type_to_data_type(column_type: &Type) -> Option<DataType> {
             Arc::new(Field::new("item", DataType::Float64, true)),
             2,
         )),
+        Type::PG_NODE_TREE => Some(DataType::Utf8),
         Type::INT2_ARRAY => Some(DataType::List(Arc::new(Field::new(
             "item",
             DataType::Int16,
