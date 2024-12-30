@@ -1,4 +1,5 @@
 use std::any::Any;
+use std::collections::HashMap;
 use std::error::Error;
 use std::sync::Arc;
 
@@ -248,7 +249,15 @@ impl<'a>
             let arrow_type = pg_data_type_to_arrow_type(&pg_type, type_details)
                 .boxed()
                 .context(super::UnableToGetSchemaSnafu)?;
-            fields.push(Field::new(column_name, arrow_type, nullable));
+            let field = Field::new(column_name, arrow_type, nullable);
+            if pg_type == "geometry" {
+                fields.push(field.with_metadata(HashMap::from([(
+                    "target_type".to_owned(),
+                    "geometry".to_owned(),
+                )])))
+            } else {
+                fields.push(field)
+            }
         }
 
         let schema = Arc::new(Schema::new(fields));
