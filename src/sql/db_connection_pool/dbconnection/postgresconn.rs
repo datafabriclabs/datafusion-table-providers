@@ -91,7 +91,6 @@ END as type_details
 FROM 
 information_schema.columns c
 LEFT JOIN custom_type_details td ON td.typname = c.udt_name
-LEFT JOIN pg_type t ON t.typname = c.udt_name
 LEFT JOIN pg_attribute a ON 
 a.attrelid = (
     SELECT oid 
