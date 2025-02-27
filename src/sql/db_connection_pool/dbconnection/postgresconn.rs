@@ -82,7 +82,7 @@ WITH custom_type_details AS (
       FROM
         pg_namespace
       WHERE
-        nspname = 'public'
+        nspname = $1
     )
 )
 SELECT
@@ -136,8 +136,8 @@ FROM
   )
   AND a.attname = c.column_name
 WHERE
-  c.table_schema = 'public'
-  AND c.table_name = 'SFTXSB'
+  c.table_schema = $1
+  AND c.table_name = $2
 ORDER BY
   c.ordinal_position;
 "#;
