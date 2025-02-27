@@ -26,88 +26,120 @@ use super::Result;
 
 const SCHEMA_QUERY: &str = r#"
 WITH custom_type_details AS (
-SELECT 
-t.typname,
-t.typtype,
-CASE 
-    WHEN t.typtype = 'e' THEN 
-        jsonb_build_object(
-            'type', 'enum',
-            'values', (
-                SELECT jsonb_agg(e.enumlabel ORDER BY e.enumsortorder)
-                FROM pg_enum e 
-                WHERE e.enumtypid = t.oid
+  SELECT
+    t.typname,
+    t.typtype,
+    t.oid,
+    CASE
+      WHEN t.typtype = 'e' THEN jsonb_build_object(
+        'type',
+        'enum',
+        'values',
+        (
+          SELECT
+            jsonb_agg(
+              e.enumlabel
+              ORDER BY
+                e.enumsortorder
             )
+          FROM
+            pg_enum e
+          WHERE
+            e.enumtypid = t.oid
         )
-    WHEN t.typtype = 'c' THEN
-        jsonb_build_object(
-            'type', 'composite',
-            'attributes', (
-                SELECT jsonb_agg(
-                    jsonb_build_object(
-                        'name', a.attname,
-                        'type', pg_catalog.format_type(a.atttypid, a.atttypmod)
-                    )
-                    ORDER BY a.attnum
-                )
-                FROM pg_attribute a
-                WHERE a.attrelid = t.typrelid 
-                AND a.attnum > 0 
-                AND NOT a.attisdropped
+      )
+      WHEN t.typtype = 'c' THEN jsonb_build_object(
+        'type',
+        'composite',
+        'attributes',
+        (
+          SELECT
+            jsonb_agg(
+              jsonb_build_object(
+                'name',
+                a.attname,
+                'type',
+                pg_catalog.format_type(a.atttypid, a.atttypmod)
+              )
+              ORDER BY
+                a.attnum
             )
+          FROM
+            pg_attribute a
+          WHERE
+            a.attrelid = t.typrelid
+            AND a.attnum > 0
+            AND NOT a.attisdropped
         )
-END as type_details
-FROM pg_type t
-WHERE t.typnamespace = (SELECT oid FROM pg_namespace WHERE nspname = $1)
+      )
+    END AS type_details
+  FROM
+    pg_type t
+  WHERE
+    t.typnamespace = (
+      SELECT
+        oid
+      FROM
+        pg_namespace
+      WHERE
+        nspname = 'public'
+    )
 )
-SELECT 
-c.column_name,
-CASE 
-WHEN c.data_type = 'USER-DEFINED' THEN
-    CASE 
-        WHEN t.typtype = 'e' THEN 'enum'
-        WHEN t.typtype = 'c' THEN 'composite'
-        WHEN t.typtype = 'b' THEN t.typname
-        ELSE c.data_type
+SELECT
+  c.column_name,
+  CASE
+    WHEN c.data_type = 'USER-DEFINED' THEN CASE
+      WHEN td.typtype = 'e' THEN 'enum'
+      WHEN td.typtype = 'c' THEN 'composite'
+      WHEN td.typtype = 'b' THEN td.typname
+      ELSE c.data_type
     END
-WHEN c.data_type = 'ARRAY' THEN
-    'array'
-ELSE pg_catalog.format_type(a.atttypid, a.atttypmod)
-END as data_type,
-c.is_nullable,
-CASE 
-WHEN c.data_type = 'ARRAY' THEN
-    jsonb_build_object(
-        'type', 'array',
-        'element_type', (
-            SELECT pg_catalog.format_type(et.oid, a.atttypmod)
-            FROM pg_type t
-            JOIN pg_type et ON t.typelem = et.oid
-            WHERE t.typname = c.udt_name
-        )
+    WHEN c.data_type = 'ARRAY' THEN 'array'
+    ELSE pg_catalog.format_type(a.atttypid, a.atttypmod)
+  END AS data_type,
+  c.is_nullable,
+  CASE
+    WHEN c.data_type = 'ARRAY' THEN jsonb_build_object(
+      'type',
+      'array',
+      'element_type',
+      (
+        SELECT
+          pg_catalog.format_type(et.oid, a.atttypmod)
+        FROM
+          pg_type t
+          JOIN pg_type et ON t.typelem = et.oid
+        WHERE
+          t.typname = c.udt_name
+      )
     )
-ELSE td.type_details
-END as type_details
-FROM 
-information_schema.columns c
-LEFT JOIN custom_type_details td ON td.typname = c.udt_name
-LEFT JOIN pg_attribute a ON 
-a.attrelid = (
-    SELECT oid 
-    FROM pg_class 
-    WHERE relname = c.table_name 
-    AND relnamespace = (
-        SELECT oid 
-        FROM pg_namespace 
-        WHERE nspname = c.table_schema
-    )
-)
-AND a.attname = c.column_name
-WHERE 
-c.table_schema = $1
-AND c.table_name = $2
-ORDER BY 
-c.ordinal_position;
+    ELSE td.type_details
+  END AS type_details
+FROM
+  information_schema.columns c
+  LEFT JOIN custom_type_details td ON td.typname = c.udt_name
+  LEFT JOIN pg_attribute a ON a.attrelid = (
+    SELECT
+      oid
+    FROM
+      pg_class
+    WHERE
+      relname = c.table_name
+      AND relnamespace = (
+        SELECT
+          oid
+        FROM
+          pg_namespace
+        WHERE
+          nspname = c.table_schema
+      )
+  )
+  AND a.attname = c.column_name
+WHERE
+  c.table_schema = 'public'
+  AND c.table_name = 'SFTXSB'
+ORDER BY
+  c.ordinal_position;
 "#;
 
 const SCHEMAS_QUERY: &str = r#"
